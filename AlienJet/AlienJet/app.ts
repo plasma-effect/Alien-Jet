@@ -141,6 +141,7 @@ enum GameFlag {
 }
 var game_flag: GameFlag;
 var image: Array<HTMLImageElement>;
+var diffculty: string;
 
 window.onload = () => {
     canvas = new plasma.CanvasTraits("field");
@@ -178,10 +179,23 @@ window.onload = () => {
                 game_system.graphic();
                 break;
             case GameFlag.gameover:
-                if (plasma.game_interface.mouse_click())
+                
+                if (plasma.game_interface.mouse_click()) {
+                    if (plasma.game_interface.mouse_x() > 160 &&
+                        plasma.game_interface.mouse_x() < 228 &&
+                        plasma.game_interface.mouse_y() > 128 &&
+                        plasma.game_interface.mouse_y() < 160) {
+                        var url = "http://plasma-effect.github.io/Alien-Jet/AlienJet/AlienJet/index.html";
+                        var text = encodeURIComponent(diffculty + "で" + game_system.point + "体のエイリアンをふっ飛ばした！");
+                        var tag = "AlienJet";
+                        window.open("https://twitter.com/intent/tweet?text=" + text + "&hashtags=" + tag + "&url=" + url);
+                    }
+
                     game_flag = GameFlag.title;
-                game_system.graphic();
+                }game_system.graphic();
                 canvas.draw_string("GameOver", 64, 160, 208, "azure");
+                canvas.draw_rect(160, 272, 128, 32, "red");
+                canvas.draw_string("呟く", 32, 160, 272, "white");
                 break;
         }
     }, 20);
