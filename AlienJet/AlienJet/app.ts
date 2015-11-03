@@ -1,246 +1,188 @@
-﻿var ctx: CanvasRenderingContext2D;
+﻿/// <reference path="TypeScriptLibrary.ts"/>
+var canvas :plasma.CanvasTraits;
 
-namespace random_number {
-    class XorShift {
-        constructor(private seed: number) {
-        }
-
-        public run(): number {
-            this.seed ^= (this.seed << 13);
-            this.seed ^= (this.seed >> 21);
-            this.seed ^= (this.seed << 8);
-            this.seed ^= (this.seed >> 17);
-            return this.seed;
-        }
-    }
-    export var ran = new XorShift((new Date).getTime());
-    export function random() {
-        return ((ran.run() % 4) + 4) % 4;
-    }
-
-    export function int_distribute(m: number) {
-        var x = ran.run();
-        var max = Math.floor((1 << 31) / m) * m;
-        for (; x < 0 || x >= max; x = ran.run());
-        return x % m;
-    }
-
-    export function make_numbers(m: number) {
-        if (m == 0) return new Array<number>(0);
-        m -= 1;
-        var ret = [0];
-        for (var v = 1; v < m; ++v) {
-            var x = int_distribute(v);
-            var y = ret[x];
-            ret[x] = v;
-            ret.unshift(y);
-        }
-        return ret;
-    }
+enum Color {
+    red, green, blue, yellow
 }
 
-namespace mouse {
-    export var mouse_x = 0;
-    export var mouse_y = 0;
-    export var mouse_on = false;
-}
-document.addEventListener('click', (e) => {
-    mouse.mouse_x = e.clientX - 8;
-    mouse.mouse_y = e.clientY - 7;
-    mouse.mouse_on = true;
-});
-
-namespace enter {
-    export var enter_on: boolean;
-}
-document.addEventListener("keydown", (e) => {
-    enter.enter_on = e.keyCode == 229;
-});
-
-namespace enemy_data {
-    export enum Color { Red, Blue, Yellow, Green };
-    export enum GameFlag { Nothing, OK, Gameover };
-    export var enemy_image: Array<HTMLImageElement>;
-    export class Alien {
-        private flag: boolean;
-
-        constructor(
-            private x: number,
-            private y: number,
-            private speed: number,
-            public color: Color) {
-        }
-
-        public run(
-            target: Color) {
-            if (this.flag) {
-                this.y += 10;
-                return GameFlag.Nothing;
-            }
-            else {
-                if (mouse.mouse_on &&
-                    this.x >= mouse.mouse_x &&
-                    this.x < mouse.mouse_x + 80 &&
-                    this.y >= mouse.mouse_y &&
-                    this.y < mouse.mouse_y + 80) {
-                    mouse.mouse_on = false;
-                    this.flag = true;
-                    return target == this.color ? GameFlag.OK : GameFlag.Gameover;
-                }
-                this.x += this.speed;
-                if (this.x >= 640 && this.color == target) return GameFlag.Gameover;
-                return GameFlag.Nothing;
-            }
-        }
-
-        public graphic() {
-            ctx.drawImage(enemy_image[this.color], this.x, this.y);
-        }
-
-        public exist() {
-            return this.x < 640 && this.y > 0;
-        }
-
-        public speed_change(n: number) {
-            this.speed = n;
-        }
-
-        public appear() {
-            return this.flag || this.x >= 0;
-        }
-    }
+enum ReturnType {
+    nothing, jeted, through
 }
 
-class GameProcess {
-    private aliens: Array<enemy_data.Alien>;
-    private nexts: Array<Array<enemy_data.Alien>>;
-    private now_time: number;
-    private now_level: number;
-    private target: enemy_data.Color;
-    private point: number;
-    private timer: number;
-    private mode: boolean;
-
+class Alien {
     constructor(
-        private speed: Array<number>,
-        private time: Array<number>) {
-        this.generate_next();
-        this.now_level = 0;
-        this.target = random_number.int_distribute(4);
-        this.point = 0;
-        this.timer = 0;
-        this.mode = true;
-        
-    }
-
-    private generate_next() {
-        var ar = random_number.make_numbers(12);
-        for (var i = 0; i < 4; ++i) {
-            this.nexts.unshift([
-                new enemy_data.Alien(-80, 230 + 0 * 80, this.speed[this.now_level], ar[3 * i]),
-                new enemy_data.Alien(-80, 230 + 1 * 80, this.speed[this.now_level], ar[3 * i + 1]),
-                new enemy_data.Alien(-80, 230 + 2 * 80, this.speed[this.now_level], ar[3 * i + 2])]);
-        }
+        public x: number,
+        public y: number,
+        public speed: number,
+        public color: Color,
+        public flag: boolean = false) {
     }
 
     public run() {
-        if (this.mode) {
-            this.aliens.forEach((value, index, array) => {
-                var v = value.run(this.target);
-                switch (v) {
-                    case enemy_data.GameFlag.OK:
-                        ++this.point;
-                        break;
-                    case enemy_data.GameFlag.Gameover:
-                        this.mode = false;
-                }
-            });
-            ++this.timer;
-            if (this.time[this.now_level] == this.timer) {
-                ++this.now_level;
-                this.aliens.forEach((value, i, a) => value.speed_change(this.speed[this.now_level]));
-            }
-            if (this.aliens.every((value, i, a) => value.appear())) {
-                var next = this.nexts.shift();
-                this.aliens.unshift(next[0], next[1], next[2]);
-                if (this.nexts.length == 0) this.generate_next();
-            }
+        if (this.flag) {
+            this.y -= 16;
+            if (this.y < -80) return ReturnType.jeted;
         }
         else {
-            if (enter.enter_on) {
-                enter.enter_on = false;
-                return true;
-            }
+            this.x += this.speed;
+            if (this.x > 640) return ReturnType.through;
         }
-        return false;
+        return ReturnType.nothing;
     }
-    public graphic() {
+}
+
+class SpeedData {
+    public speed: number;
+    public timer: number;
+}
+
+class GameSystem {
+    public random_engine: () => number;
+    public nexts: Array<Color>;
+    public target: Color;
+    public point: number;
+
+    private generate_next() {
+        var engine = plasma.random.uniformed_int_distribution(this.random_engine, 0, 11);
+        this.nexts = [
+            Color.blue, Color.green, Color.red, Color.yellow,
+            Color.blue, Color.green, Color.red, Color.yellow,
+            Color.blue, Color.green, Color.red, Color.yellow];
+        for (var i = 0; i < 0x20; ++i) {
+            var u = engine();
+            var v = engine();
+            var c = this.nexts[u];
+            this.nexts[u] = this.nexts[v];
+            this.nexts[v] = c;
+        }
+    }
+
+    constructor(
+        public aliens: Array<Alien>,
+        public images: Array<HTMLImageElement>,
+        public speed_data: Array<SpeedData>) {
+        this.random_engine = plasma.random.make_xorshift(plasma.random.seed_generate());
+
+        this.generate_next();
+        this.target = <Color>this.random_engine() % 4;
+        this.point = 0;
+    }
+
+    public run() {
+        var flag = false;
         this.aliens = this.aliens.filter((value, index, array) => {
-            if (value.exist()) {
-                value.graphic();
-                return true;
+            var r = value.run();
+            switch (r) {
+                case ReturnType.jeted:
+                    return false;
+                case ReturnType.through:
+                    if (this.target == value.color)
+                        flag = true;
+                    return false;
             }
-            else return false;
+            return true;
         });
-        ctx.fillStyle = "rgb(0,0,0)";
-        ctx.fillRect(320, 0, 80, 80);
-        ctx.fillStyle = "rgb(255, 255, 255)";
-        ctx.fillRect(321, 1, 78, 78);
-        ctx.drawImage(enemy_data.enemy_image[this.target], 320, 0);
-        ctx.font = "24px 'ＭＳ Ｐゴシック'";
-        ctx.fillStyle = "rgb(255, 255, 255)";
-        ctx.fillText("をクリック！", 400, 0);
-        ctx.font = "16px 'ＭＳ Ｐゴシック'";
-        ctx.fillStyle = "rgb(255, 255, 255)";
-        ctx.fillText("SCORE: " + this.point.toString(), 0, 0);
-        if (!this.mode) {
-            ctx.font = "64px 'ＭＳ Ｐゴシック'";
-            ctx.fillStyle = "rgb(255, 255, 255)";
-            ctx.fillText("GameOver!!(press Space Key)\n" + this.point.toString() + "体のエイリアンをふっ飛ばしました", 32, 280);
+        if (plasma.game_interface.mouse_click()) {
+            var x = plasma.game_interface.mouse_x() - 8;
+            var y = plasma.game_interface.mouse_y() - 7;
+
+            this.aliens.forEach((value, index, array) => {
+                if (!value.flag &&
+                    value.x < x &&
+                    value.x + 79 > x &&
+                    value.y < y &&
+                    value.y + 79 > y) {
+                    if (this.target == value.color) {
+                        ++this.point;
+                        value.flag = true;
+                    }
+                    else {
+                        flag = true;
+                    }
+                }
+            });
         }
+        if (this.aliens.every((value, index, array) => {
+            return (value.flag || value.x > 0);
+        })) {
+            this.aliens.unshift(
+                new Alien(-80, 200, this.speed_data[0].speed, this.nexts.shift()),
+                new Alien(-80, 280, this.speed_data[0].speed, this.nexts.shift()),
+                new Alien(-80, 360, this.speed_data[0].speed, this.nexts.shift()));
+            if (this.nexts.length == 0) this.generate_next();
+        }
+        if (this.speed_data[0].timer > 0) {
+            --this.speed_data[0].timer;
+            canvas.draw_string("next:" + Math.floor(1 + this.speed_data[0].timer / 50) + "sec", 24, 0, 32, "azure");
+        }
+        if (this.speed_data[0].timer == 0) {
+            this.speed_data.shift();
+            this.aliens.forEach((value, index, array) => {
+                value.speed = this.speed_data[0].speed;
+            });
+        }
+        return flag;
+    }
+
+    public graphic() {
+        this.aliens.forEach((value, index, array) => {
+            canvas.draw_image(this.images[<number>value.color], value.x, value.y);
+        });
+        canvas.draw_rect(320, 0, 80, 80, "white");
+        canvas.draw_image(this.images[<number>this.target], 320, 0);
+        canvas.draw_string("to be clicked!!", 24, 400, 0, "azure");
+        canvas.draw_string("point:" + this.point, 16, 0, 0, "azure");
     }
 }
-var game_process: GameProcess = null;
 
-function loop() {
-    random_number.ran.run();
-    ctx.fillStyle = "rgb(153, 217, 234)";
-    ctx.fillRect(0, 0, 640, 230);
-    ctx.fillStyle = "rgb(34, 177, 76)";
-    ctx.fillRect(0, 230, 640, 240);
-
-    if (game_process != null) {
-        if (game_process.run()) {
-            game_process = null;
-            return;
-        }
-        game_process.graphic();
-    }
-    else {
-        ctx.font = "64px 'ＭＳ Ｐゴシック'";
-        ctx.fillStyle = "rgb(255, 255, 255)";
-        ctx.fillText("Alien Jet", 280, 280);
-        if (mouse.mouse_on) {
-            mouse.mouse_on = false;
-            game_process = new GameProcess([1, 2, 3], [500, 1000, 0]);
-        }
-    }
-    return false;
+var game_system: GameSystem;
+enum GameFlag {
+    title, running, gameover
 }
+var game_flag: GameFlag;
+var image: Array<HTMLImageElement>;
 
 window.onload = () => {
-    var canvas = <HTMLCanvasElement>document.getElementById('field');
-    if (!canvas || !canvas.getContext) return false;
-    ctx = canvas.getContext('2d');
-    var flags = [false, false, false, false];
-    enemy_data.enemy_image = [new Image(), new Image(), new Image(), new Image()];
+    canvas = new plasma.CanvasTraits("field");
+    game_flag = GameFlag.title;
+    image = [new Image(), new Image(), new Image(), new Image()];
+    image[Color.red]    .src = "red.png";
+    image[Color.green]  .src = "green.png";
+    image[Color.blue]   .src = "blue.png";
+    image[Color.yellow] .src = "yellow.png";
 
-    enemy_data.enemy_image[enemy_data.Color.Red].src = "red.png";
-    enemy_data.enemy_image[enemy_data.Color.Blue].src = "blue.png";
-    enemy_data.enemy_image[enemy_data.Color.Yellow].src = "yellow.png";
-    enemy_data.enemy_image[enemy_data.Color.Green].src = "green.png";
-
-    game_process = null;
-
-    setInterval(loop, 20);
-};
+    plasma.game_interface.set_interval(() => {
+        canvas.draw_rect(0, 0, 640, 480, "black");
+        canvas.draw_rect(0, 0, 640, 200, "blue");
+        canvas.draw_rect(0, 200, 640, 240, "green");
+        switch (game_flag) {
+            case GameFlag.title:
+                if (plasma.game_interface.mouse_click()) {
+                    game_flag = GameFlag.running;
+                    game_system = new GameSystem([], image, [
+                        { speed: 1, timer: 750 },
+                        { speed: 2, timer: 750 },
+                        { speed: 3, timer: 750 },
+                        { speed: 4, timer: 750 },
+                        { speed: 5, timer: 750 },
+                        { speed: 6, timer: 750 },
+                        { speed: 7, timer: 750 },
+                        { speed: 8, timer: 750 },
+                        { speed: 9, timer: 750 },
+                        { speed: 10, timer: -1 }]);
+                }
+                canvas.draw_string("Alien Jet", 64, 240, 208, "azure");
+                break;
+            case GameFlag.running:
+                if (game_system.run()) game_flag = GameFlag.gameover;
+                game_system.graphic();
+                break;
+            case GameFlag.gameover:
+                if (plasma.game_interface.mouse_click())
+                    game_flag = GameFlag.title;
+                game_system.graphic();
+                canvas.draw_string("GameOver", 64, 160, 208, "azure");
+                break;
+        }
+    }, 20);
+}
