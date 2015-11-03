@@ -35,6 +35,7 @@
     <TypeScriptCompile Include="TypeScriptLibrary.ts" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="README.md" />
     <None Include="web.Debug.config">
       <DependentUpon>web.config</DependentUpon>
     </None>
