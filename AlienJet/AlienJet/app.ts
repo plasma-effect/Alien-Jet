@@ -142,6 +142,7 @@ enum GameFlag {
 var game_flag: GameFlag;
 var image: Array<HTMLImageElement>;
 var diffculty: string;
+var timer: number;
 
 window.onload = () => {
     canvas = new plasma.CanvasTraits("field");
@@ -158,44 +159,71 @@ window.onload = () => {
         canvas.draw_rect(0, 200, 640, 240, "green");
         switch (game_flag) {
             case GameFlag.title:
-                if (plasma.game_interface.mouse_click()) {
+                if (plasma.game_interface.mouse_click() &&
+                    plasma.game_interface.mouse_x() - 8 > 0 &&
+                    plasma.game_interface.mouse_x() - 8 < 640 &&
+                    plasma.game_interface.mouse_y() - 7 > 0 &&
+                    plasma.game_interface.mouse_y() - 7 <480) {
                     game_flag = GameFlag.running;
-                    game_system = new GameSystem([], image, [
-                        { speed: 1, timer: 750 },
-                        { speed: 2, timer: 750 },
-                        { speed: 3, timer: 750 },
-                        { speed: 4, timer: 750 },
-                        { speed: 5, timer: 750 },
-                        { speed: 6, timer: 750 },
-                        { speed: 7, timer: 750 },
-                        { speed: 8, timer: 750 },
-                        { speed: 9, timer: 750 },
-                        { speed: 10, timer: -1 }]);
+                    if (plasma.game_interface.keyboard_press(16))
+                    {
+                        diffculty = "ハードモード";
+                        game_system = new GameSystem([], image, [
+                            { speed: 4, timer: 1000 },
+                            { speed: 5, timer: 1000 },
+                            { speed: 6, timer: 1000 },
+                            { speed: 7, timer: 1000 },
+                            { speed: 8, timer: 1000 },
+                            { speed: 9, timer: 1000 },
+                            { speed: 10, timer: -1 }]);
+                    }
+                    else if (plasma.game_interface.keyboard_press(17)) {
+                        diffculty = "デスモード";
+                        game_system = new GameSystem([], image, [
+                            { speed: 10, timer:-1  }]);
+                    }else {
+                        diffculty = "オリジナルモード";
+                        game_system = new GameSystem([], image, [
+                            { speed: 2, timer: 750 },
+                            { speed: 3, timer: 750 },
+                            { speed: 4, timer: 750 },
+                            { speed: 5, timer: 750 },
+                            { speed: 6, timer: 750 },
+                            { speed: 7, timer: 750 },
+                            { speed: 8, timer: 750 },
+                            { speed: 9, timer: 750 },
+                            { speed: 10, timer: -1 }]);
+                    }
                 }
                 canvas.draw_string("Alien Jet", 64, 240, 208, "azure");
+                canvas.draw_string("Click to Start", 32, 240, 272, "azure");
                 break;
             case GameFlag.running:
-                if (game_system.run()) game_flag = GameFlag.gameover;
+                if (game_system.run()) {
+                    timer = 50;
+                    game_flag = GameFlag.gameover;
+                }
                 game_system.graphic();
                 break;
             case GameFlag.gameover:
-                
+                if (timer > 0)--timer;
                 if (plasma.game_interface.mouse_click()) {
-                    if (plasma.game_interface.mouse_x() > 160 &&
-                        plasma.game_interface.mouse_x() < 228 &&
-                        plasma.game_interface.mouse_y() > 128 &&
-                        plasma.game_interface.mouse_y() < 160) {
+                    if (plasma.game_interface.mouse_x() - 8 > 160 &&
+                        plasma.game_interface.mouse_x() - 8 < 328 &&
+                        plasma.game_interface.mouse_y() - 7 > 272 &&
+                        plasma.game_interface.mouse_y() - 7 < 312) {
                         var url = "http://plasma-effect.github.io/Alien-Jet/AlienJet/AlienJet/index.html";
                         var text = encodeURIComponent(diffculty + "で" + game_system.point + "体のエイリアンをふっ飛ばした！");
                         var tag = "AlienJet";
                         window.open("https://twitter.com/intent/tweet?text=" + text + "&hashtags=" + tag + "&url=" + url);
                     }
-
-                    game_flag = GameFlag.title;
+                    else if(timer==0){
+                        game_flag = GameFlag.title;
+                    }
                 }game_system.graphic();
                 canvas.draw_string("GameOver", 64, 160, 208, "azure");
-                canvas.draw_rect(160, 272, 128, 32, "red");
-                canvas.draw_string("呟く", 32, 160, 272, "white");
+                canvas.draw_rect(160, 272, 128, 40, "red");
+                canvas.draw_string("つぶやく", 32, 160, 272, "white");
                 break;
         }
     }, 20);
