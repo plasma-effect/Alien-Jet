@@ -9,6 +9,8 @@ enum ReturnType {
     nothing, jeted, through
 }
 
+var random: () => number;
+
 class Alien {
     constructor(
         public x: number,
@@ -37,13 +39,12 @@ class SpeedData {
 }
 
 class GameSystem {
-    public random_engine: () => number;
     public nexts: Array<Color>;
     public target: Color;
     public point: number;
 
     private generate_next() {
-        var engine = plasma.random.uniformed_int_distribution(this.random_engine, 0, 11);
+        var engine = plasma.random.uniformed_int_distribution(random, 0, 11);
         this.nexts = [
             Color.blue, Color.green, Color.red, Color.yellow,
             Color.blue, Color.green, Color.red, Color.yellow,
@@ -61,10 +62,9 @@ class GameSystem {
         public aliens: Array<Alien>,
         public images: Array<HTMLImageElement>,
         public speed_data: Array<SpeedData>) {
-        this.random_engine = plasma.random.make_xorshift(plasma.random.seed_generate());
-
+        
         this.generate_next();
-        this.target = <Color>this.random_engine() % 4;
+        this.target = <Color>random() % 4;
         this.point = 0;
     }
 
@@ -145,6 +145,7 @@ var diffculty: string;
 var timer: number;
 
 window.onload = () => {
+    random = plasma.random.make_xorshift(plasma.random.seed_generate());
     canvas = new plasma.CanvasTraits("field");
     game_flag = GameFlag.title;
     image = [new Image(), new Image(), new Image(), new Image()];

@@ -12,6 +12,7 @@ var ReturnType;
     ReturnType[ReturnType["jeted"] = 1] = "jeted";
     ReturnType[ReturnType["through"] = 2] = "through";
 })(ReturnType || (ReturnType = {}));
+var random;
 var Alien = (function () {
     function Alien(x, y, speed, color, flag) {
         if (flag === void 0) { flag = false; }
@@ -46,13 +47,12 @@ var GameSystem = (function () {
         this.aliens = aliens;
         this.images = images;
         this.speed_data = speed_data;
-        this.random_engine = plasma.random.make_xorshift(plasma.random.seed_generate());
         this.generate_next();
-        this.target = this.random_engine() % 4;
+        this.target = random() % 4;
         this.point = 0;
     }
     GameSystem.prototype.generate_next = function () {
-        var engine = plasma.random.uniformed_int_distribution(this.random_engine, 0, 11);
+        var engine = plasma.random.uniformed_int_distribution(random, 0, 11);
         this.nexts = [
             Color.blue, Color.green, Color.red, Color.yellow,
             Color.blue, Color.green, Color.red, Color.yellow,
@@ -142,6 +142,7 @@ var image;
 var diffculty;
 var timer;
 window.onload = function () {
+    random = plasma.random.make_xorshift(plasma.random.seed_generate());
     canvas = new plasma.CanvasTraits("field");
     game_flag = GameFlag.title;
     image = [new Image(), new Image(), new Image(), new Image()];
